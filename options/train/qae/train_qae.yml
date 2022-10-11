@@ -1,0 +1,96 @@
+# general settings
+name: train_qae
+model_type: SRModel
+num_gpu: 1  # set num_gpu: 0 for cpu mode
+manual_seed: 10
+scale: 1
+
+# dataset and data loader settings
+datasets:
+  train:
+    name: low_dose_ct
+    type: PairedGRAYDataset
+    dataroot_gt: /mnt/c/data/LUNA16/0/luna16dataset/nd/train
+    dataroot_lq: /mnt/c/data/LUNA16/0/luna16dataset/ld/train
+
+    filename_tmpl: '{}'
+    io_backend:
+      type: disk
+
+    gt_size: 96
+    use_flip: true
+    use_rot: true
+
+    # data loader
+    use_shuffle: true
+    num_worker_per_gpu: 6
+    batch_size_per_gpu: 8
+    dataset_enlarge_ratio: 100
+    prefetch_mode: ~
+
+  val:
+    name: low_dose_ct_valid
+    type: PairedGRAYDataset
+    dataroot_gt: /mnt/c/data/LUNA16/0/luna16dataset/nd/test_min
+    dataroot_lq: /mnt/c/data/LUNA16/0/luna16dataset/ld/test_min
+
+    io_backend:
+      type: disk
+
+# network structures
+network_g:
+  type: QAE_Net
+
+# path
+path:
+  pretrain_network_g: ~
+  strict_load_g: true
+  resume_state: ~
+
+# training settings
+train:
+  ema_decay: 0.999
+  optim_g:
+    type: Adam
+    lr: !!float 1e-4
+    weight_decay: 0
+    betas: [0.9, 0.99]
+
+  scheduler:
+    type: MultiStepLR
+    milestones: [200000, 400000]
+    gamma: 0.5
+
+  total_iter: 500000
+  warmup_iter: -1  # no warm up
+
+  # losses
+  pixel_opt:
+    type: L1Loss
+    loss_weight: 1.0
+    reduction: mean
+
+# validation settings
+val:
+  val_freq: !!float 5e3
+  save_img: true
+
+  metrics:
+    psnr: # metric name, can be arbitrary
+      type: calculate_psnr
+      crop_border: 0
+      test_y_channel: false
+
+# logging settings
+logger:
+  print_freq: 100
+  save_checkpoint_freq: !!float 5e3
+  use_tb_logger: true
+  wandb:
+    project: ~
+    resume_id: ~
+
+# dist training settings
+dist_params:
+  backend: nccl
+  port: 29500
